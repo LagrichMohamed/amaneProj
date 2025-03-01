@@ -34,6 +34,9 @@ Route::prefix('admin')->group(function () {
     // Filiere enrollment routes
     Route::get('/etudiantDetails/{id}/inscription-filiere', [AdminController::class, 'showInscriptionFiliereForm'])->name('admin.inscriptionFiliere');
     Route::post('/etudiantDetails/{id}/inscription-filiere', [AdminController::class, 'storeInscriptionFiliere'])->name('admin.storeInscriptionFiliere');
+    
+    // Update filiere status
+    Route::post('/update-filiere-status', [AdminController::class, 'updateFiliereStatus'])->name('admin.updateFiliereStatus');
 });
 
 require __DIR__.'/auth.php';

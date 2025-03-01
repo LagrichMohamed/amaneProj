@@ -155,9 +155,9 @@
                             this.showConfirmDialog = true;
                         },
                         
-                        confirmDeleteEnrollment(month, enrollmentId) {
+                        async confirmDeleteEnrollment(month, paymentId) {
                             this.confirmMessage = `Annuler le paiement pour ${this.monthNames[month-1]} ${this.selectedYear}?`;
-                            this.confirmData = { month, enrollmentId };
+                            this.confirmData = { month, paymentId };
                             this.confirmAction = 'delete';
                             this.showConfirmDialog = true;
                         },
@@ -165,7 +165,7 @@
                         async handleMonthClick(month) {
                             const monthData = this.months.find(m => m.month === month);
                             if (monthData.paid) {
-                                this.confirmDeleteEnrollment(month, monthData.enrollment_id);
+                                this.confirmDeleteEnrollment(month, monthData.payment_id);
                             } else {
                                 this.confirmAddEnrollment(month);
                             }
@@ -175,7 +175,7 @@
                             if (this.confirmAction === 'add') {
                                 await this.addEnrollment(this.confirmData.month);
                             } else if (this.confirmAction === 'delete') {
-                                await this.deleteEnrollment(this.confirmData.enrollmentId);
+                                await this.deleteEnrollment(this.confirmData.paymentId);
                             }
                             this.showConfirmDialog = false;
                         },
@@ -208,7 +208,7 @@
                             }
                         },
                         
-                        async deleteEnrollment(enrollmentId) {
+                        async deleteEnrollment(paymentId) {
                             try {
                                 const response = await fetch('{{ route('admin.deleteMonthlyEnrollment') }}', {
                                     method: 'POST',
@@ -217,7 +217,7 @@
                                         'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content
                                     },
                                     body: JSON.stringify({
-                                        enrollment_id: enrollmentId
+                                        payment_id: paymentId
                                     })
                                 });
                                 
@@ -261,9 +261,63 @@
 
                     <div class="mb-2">
                         <span class="text-sm font-medium text-gray-700">Statut: </span>
-                        <span class="{{ $filiere->pivot->statut === 'actif' ? 'text-green-600' : 'text-red-600' }}">
-                            {{ ucfirst($filiere->pivot->statut) }}
-                        </span>
+                        <select 
+                            class="rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm"
+                            x-data="{ 
+                                originalStatus: '{{ $filiere->pivot->statut }}',
+                                updateStatus(newStatus, filiereId) {
+                                    if (newStatus === this.originalStatus) return;
+                                    
+                                    fetch('{{ route('admin.updateFiliereStatus') }}', {
+                                        method: 'POST',
+                                        headers: {
+                                            'Content-Type': 'application/json',
+                                            'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content
+                                        },
+                                        body: JSON.stringify({
+                                            etudiant_id: '{{ $etudiant->id }}',
+                                            filiere_id: filiereId,
+                                            status: newStatus
+                                        })
+                                    })
+                                    .then(response => {
+                                        if (!response.ok) {
+                                            throw new Error('Erreur lors de la mise à jour du statut');
+                                        }
+                                        return response.json();
+                                    })
+                                    .then(data => {
+                                        this.originalStatus = newStatus;
+                                        // Show success message
+                                        const successDiv = document.createElement('div');
+                                        successDiv.className = 'bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-4';
+                                        successDiv.innerHTML = '<span class="block sm:inline">Statut mis à jour avec succès</span>';
+                                        document.querySelector('.max-w-4xl.mx-auto').insertBefore(successDiv, document.querySelector('.bg-white.rounded-lg.shadow-md.p-6.mb-6'));
+                                        
+                                        // Remove success message after 3 seconds
+                                        setTimeout(() => {
+                                            successDiv.remove();
+                                        }, 3000);
+                                    })
+                                    .catch(error => {
+                                        console.error('Error:', error);
+                                        alert(error.message);
+                                    });
+                                }
+                            }"
+                            @change="updateStatus($event.target.value, {{ $filiere->id }})">
+                            <option value="actif" {{ $filiere->pivot->statut === 'actif' ? 'selected' : '' }}>Actif</option>
+                            <option value="terminé" {{ $filiere->pivot->statut === 'terminé' ? 'selected' : '' }}>Terminé</option>
+                            <option value="abandonné" {{ $filiere->pivot->statut === 'abandonné' ? 'selected' : '' }}>Abandonné</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-2">
+                        <p class="text-sm text-gray-600">
+                            <span class="font-medium">Note:</span> Chaque mois représente un paiement mensuel. 
+                            Cliquez sur un mois pour ajouter ou supprimer un paiement.
+                            Les mois en vert sont payés, les mois en rouge sont non payés.
+                        </p>
                     </div>
 
                     <!-- Monthly Payments Grid -->

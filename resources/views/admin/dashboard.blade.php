@@ -22,8 +22,6 @@
                                                     </button>
                                                 </form>
                                             </div>
-
-                                            <!-- Search Bar -->
                                             <div class="mb-6">
                                                 <form method="GET" action="{{ route('admin.dashboard') }}" class="flex">
                                                     <input type="text" name="search" placeholder="Rechercher par ID, nom, prénom ou email..." 

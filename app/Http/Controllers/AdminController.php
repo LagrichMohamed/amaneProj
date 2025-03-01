@@ -111,31 +111,40 @@ class AdminController extends Controller
             return response()->json(['error' => 'Étudiant non trouvé'], 404);
         }
         
+        // Get the enrollment record
+        $enrollment = InscriptionEtudiantFiliere::where('etudiant_id', $etudiantId)
+            ->where('filiere_id', $filiereId)
+            ->first();
+            
+        if (!$enrollment) {
+            return response()->json(['error' => 'Inscription non trouvée'], 404);
+        }
+        
         // Initialize all months as unpaid
         for ($month = 1; $month <= 12; $month++) {
             $months[$month] = [
                 'month' => $month,
                 'paid' => false,
-                'start_date' => null,
-                'end_date' => null
+                'payment_id' => null,
+                'date_paiement' => null,
+                'date_echeance' => null
             ];
         }
         
-        // Get all enrollments for this student, filiere, and year
-        $enrollments = InscriptionEtudiantFiliere::where('etudiant_id', $etudiantId)
-            ->where('filiere_id', $filiereId)
-            ->whereYear('date_inscription', $year)
+        // Get all payments for this enrollment and year
+        $payments = \App\Models\PaiementMensuel::where('inscription_etudiant_filiere_id', $enrollment->id)
+            ->whereYear('date_paiement', $year)
             ->get();
         
-        // Mark months that have enrollments as paid
-        foreach ($enrollments as $enrollment) {
-            $month = date('n', strtotime($enrollment->date_inscription));
+        // Mark months that have payments as paid
+        foreach ($payments as $payment) {
+            $month = date('n', strtotime($payment->date_paiement));
             $months[$month] = [
                 'month' => $month,
                 'paid' => true,
-                'enrollment_id' => $enrollment->id,
-                'start_date' => $enrollment->date_inscription,
-                'end_date' => $enrollment->date_completion
+                'payment_id' => $payment->id,
+                'date_paiement' => $payment->date_paiement,
+                'date_echeance' => $payment->date_echeance
             ];
         }
         
@@ -161,51 +170,58 @@ class AdminController extends Controller
         $year = $request->year;
         $month = $request->month;
         
-        // Check if enrollment already exists for this month
-        $existingEnrollment = InscriptionEtudiantFiliere::where('etudiant_id', $etudiantId)
+        // Get the enrollment record
+        $enrollment = InscriptionEtudiantFiliere::where('etudiant_id', $etudiantId)
             ->where('filiere_id', $filiereId)
-            ->whereYear('date_inscription', $year)
-            ->whereMonth('date_inscription', $month)
             ->first();
             
-        if ($existingEnrollment) {
-            return response()->json(['error' => 'Inscription déjà existante pour ce mois'], 400);
+        if (!$enrollment) {
+            return response()->json(['error' => 'Inscription non trouvée'], 404);
         }
         
-        // Calculate start and end dates for the month
+        // Check if payment already exists for this month
         $startDate = "{$year}-{$month}-01";
         $endDate = date('Y-m-t', strtotime($startDate)); // Last day of the month
         
-        // Create new enrollment
-        $enrollment = new InscriptionEtudiantFiliere();
-        $enrollment->etudiant_id = $etudiantId;
-        $enrollment->filiere_id = $filiereId;
-        $enrollment->statut = 'actif';
-        $enrollment->date_inscription = $startDate;
-        $enrollment->date_completion = $endDate;
-        $enrollment->save();
+        $existingPayment = \App\Models\PaiementMensuel::where('inscription_etudiant_filiere_id', $enrollment->id)
+            ->whereYear('date_paiement', $year)
+            ->whereMonth('date_paiement', $month)
+            ->first();
+            
+        if ($existingPayment) {
+            return response()->json(['error' => 'Paiement déjà existant pour ce mois'], 400);
+        }
+        
+        // Create new payment
+        $payment = new \App\Models\PaiementMensuel();
+        $payment->inscription_etudiant_filiere_id = $enrollment->id;
+        $payment->date_paiement = $startDate;
+        $payment->date_echeance = $endDate;
+        $payment->statut = 'payé';
+        $payment->verifie_par_admin_id = Session::get('admin_id');
+        $payment->save();
         
         return response()->json([
             'success' => true,
-            'enrollment' => $enrollment
+            'payment' => $payment
         ]);
     }
     
     public function deleteMonthlyEnrollment(Request $request)
     {
         $request->validate([
-            'enrollment_id' => 'required|numeric',
+            'payment_id' => 'required|numeric',
         ]);
         
-        $enrollmentId = $request->enrollment_id;
+        $paymentId = $request->payment_id;
         
-        $enrollment = InscriptionEtudiantFiliere::find($enrollmentId);
+        $payment = \App\Models\PaiementMensuel::find($paymentId);
         
-        if (!$enrollment) {
-            return response()->json(['error' => 'Inscription non trouvée'], 404);
+        if (!$payment) {
+            return response()->json(['error' => 'Paiement non trouvé'], 404);
         }
         
-        $enrollment->delete();
+        $payment->delete();
         
         return response()->json([
             'success' => true
@@ -268,5 +284,42 @@ class AdminController extends Controller
         
         return redirect()->route('admin.etudiantDetails', $id)
             ->with('success', 'Étudiant inscrit à la filière avec succès');
+    }
+    
+    /**
+     * Update the status of a student's filiere enrollment
+     */
+    public function updateFiliereStatus(Request $request)
+    {
+        $request->validate([
+            'etudiant_id' => 'required',
+            'filiere_id' => 'required|numeric',
+            'status' => 'required|in:actif,terminé,abandonné',
+        ]);
+        
+        // Find the enrollment record
+        $enrollment = InscriptionEtudiantFiliere::where('etudiant_id', $request->etudiant_id)
+            ->where('filiere_id', $request->filiere_id)
+            ->first();
+            
+        if (!$enrollment) {
+            return response()->json(['error' => 'Inscription non trouvée'], 404);
+        }
+        
+        // Update the status
+        $enrollment->statut = $request->status;
+        
+        // If status is "terminé" or "abandonné", set the completion date to now
+        if ($request->status === 'terminé' || $request->status === 'abandonné') {
+            $enrollment->date_completion = now();
+        }
+        
+        $enrollment->save();
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'Statut mis à jour avec succès',
+            'enrollment' => $enrollment
+        ]);
     }
 }

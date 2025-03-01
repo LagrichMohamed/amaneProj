@@ -53,6 +53,14 @@
             <!-- Enrollment Form -->
             <div class="bg-white rounded-lg shadow-md p-6">
                 <h2 class="text-xl font-semibold mb-4">Formulaire d'inscription</h2>
+                
+                <div class="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
+                    <p class="text-sm text-blue-800">
+                        <span class="font-medium">Note:</span> Cette inscription enregistre l'étudiant dans la filière.
+                        Les paiements mensuels devront être ajoutés séparément dans la page de détails de l'étudiant.
+                    </p>
+                </div>
+                
                 <form action="{{ route('admin.storeInscriptionFiliere', $etudiant->id) }}" method="POST">
                     @csrf
                     
