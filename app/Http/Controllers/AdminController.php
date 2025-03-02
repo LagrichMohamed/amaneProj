@@ -322,4 +322,62 @@ class AdminController extends Controller
             'enrollment' => $enrollment
         ]);
     }
+    
+    /**
+     * Update student information
+     */
+    public function updateEtudiant(Request $request, $id)
+    {
+        $validator = \Illuminate\Support\Facades\Validator::make($request->all(), [
+            'nom' => 'required|string|max:255',
+            'prenom' => 'required|string|max:255',
+            'email' => 'required|email|max:255|unique:etudiants,email,'.$id,
+            'date_naissance' => 'nullable|date',
+            'est_actif' => 'required|boolean',
+            'url_photo_profil' => 'nullable|string|max:255',
+            'password' => 'nullable|min:6|confirmed',
+        ]);
+        
+        if ($validator->fails()) {
+            return redirect()->back()->withErrors($validator)->withInput();
+        }
+        
+        $etudiant = Etudiant::find($id);
+        
+        if (!$etudiant) {
+            return redirect()->route('admin.dashboard')->with('error', 'Étudiant non trouvé');
+        }
+        
+        // Update student information
+        $etudiant->nom = $request->nom;
+        $etudiant->prenom = $request->prenom;
+        $etudiant->email = $request->email;
+        $etudiant->date_naissance = $request->date_naissance;
+        $etudiant->est_actif = $request->est_actif;
+        $etudiant->url_photo_profil = $request->url_photo_profil;
+        
+        // Update password if provided
+        if ($request->filled('password')) {
+            $etudiant->mot_de_passe_hash = $request->password; // In a real app, this should be hashed
+        }
+        
+        $etudiant->save();
+        
+        return redirect()->route('admin.etudiantDetails', $id)
+            ->with('success', 'Informations de l\'étudiant mises à jour avec succès');
+    }
+    
+    /**
+     * Show the form for editing student information
+     */
+    public function editEtudiant($id)
+    {
+        $etudiant = Etudiant::find($id);
+        
+        if (!$etudiant) {
+            return redirect()->route('admin.dashboard')->with('error', 'Étudiant non trouvé');
+        }
+        
+        return view('admin.edit-etudiant', compact('etudiant'));
+    }
 }

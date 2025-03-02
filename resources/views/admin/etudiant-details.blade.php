@@ -4,8 +4,12 @@
     <title>Profil de l'étudiant</title>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <style>
+        [x-cloak] { display: none !important; }
+    </style>
 </head>
 <body class="bg-gray-100">
     <div class="min-h-screen p-6">
@@ -45,30 +49,34 @@
                             </div>
                             <div class="flex">
                                 <span class="font-medium w-32">Nom:</span>
-                                <span>{{ $etudiant->nom }}</span>
+                                <span id="etudiant-nom">{{ $etudiant->nom }}</span>
                             </div>
                             <div class="flex">
                                 <span class="font-medium w-32">Prénom:</span>
-                                <span>{{ $etudiant->prenom }}</span>
+                                <span id="etudiant-prenom">{{ $etudiant->prenom }}</span>
                             </div>
                             <div class="flex">
                                 <span class="font-medium w-32">Email:</span>
-                                <span>{{ $etudiant->email }}</span>
+                                <span id="etudiant-email">{{ $etudiant->email }}</span>
                             </div>
                             <div class="flex">
                                 <span class="font-medium w-32">Date de naissance:</span>
-                                <span>{{ $etudiant->date_naissance ?? 'Non renseigné' }}</span>
+                                <span id="etudiant-date-naissance">{{ $etudiant->date_naissance ?? 'Non renseigné' }}</span>
                             </div>
                             <div class="flex">
                                 <span class="font-medium w-32">Statut:</span>
-                                <span class="{{ $etudiant->est_actif ? 'text-green-600' : 'text-red-600' }}">
+                                <span id="etudiant-status" class="{{ $etudiant->est_actif ? 'text-green-600' : 'text-red-600' }}">
                                     {{ $etudiant->est_actif ? 'Actif' : 'Inactif' }}
                                 </span>
                             </div>
-                            <div class="mt-4">
+                            <div class="mt-4 flex space-x-2">
                                 <a href="{{ route('admin.inscriptionFiliere', $etudiant->id) }}" 
                                    class="inline-block px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">
                                     Inscrire à une filière
+                                </a>
+                                <a href="{{ route('admin.editEtudiant', $etudiant->id) }}" 
+                                   class="inline-block px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+                                    Modifier les informations
                                 </a>
                             </div>
                         </div>
@@ -80,6 +88,7 @@
                             <div class="mb-4">
                                 <img src="{{ $etudiant->url_photo_profil }}"
                                     alt="Photo de profil"
+                                    id="profile-image"
                                     class="w-32 h-32 object-cover rounded-full mx-auto">
                             </div>
                         @else
@@ -87,30 +96,6 @@
                                 <span class="text-gray-500 text-4xl">{{ substr($etudiant->prenom, 0, 1) . substr($etudiant->nom, 0, 1) }}</span>
                             </div>
                         @endif
-
-                        <!-- Password Update Form -->
-                        <div class="mt-6">
-                            <h3 class="text-lg font-medium mb-2">Modifier le mot de passe</h3>
-                            <form action="{{ route('admin.updateEtudiantPassword', $etudiant->id) }}" method="POST">
-                                @csrf
-                                <div class="mb-3">
-                                    <label for="password" class="block text-sm font-medium text-gray-700">Nouveau mot de passe</label>
-                                    <input type="password" name="password" id="password" 
-                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                                    @error('password')
-                                        <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
-                                    @enderror
-                                </div>
-                                <div class="mb-3">
-                                    <label for="password_confirmation" class="block text-sm font-medium text-gray-700">Confirmer le mot de passe</label>
-                                    <input type="password" name="password_confirmation" id="password_confirmation" 
-                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                                </div>
-                                <button type="submit" class="w-full bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700">
-                                    Mettre à jour
-                                </button>
-                            </form>
-                        </div>
                     </div>
                 </div>
             </div>
@@ -338,7 +323,7 @@
                     </div>
                     
                     <!-- Confirmation Dialog -->
-                    <div x-show="showConfirmDialog" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div x-cloak x-show="showConfirmDialog" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
                         <div class="bg-white rounded-lg p-6 max-w-md mx-auto">
                             <h3 class="text-lg font-medium mb-4">Confirmation</h3>
                             <p class="mb-6" x-text="confirmMessage"></p>
@@ -364,8 +349,5 @@
             @endif
         </div>
     </div>
-
-    <!-- CSRF Token for AJAX requests -->
-    <meta name="csrf-token" content="{{ csrf_token() }}">
 </body>
 </html>

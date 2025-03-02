@@ -37,6 +37,12 @@ Route::prefix('admin')->group(function () {
     
     // Update filiere status
     Route::post('/update-filiere-status', [AdminController::class, 'updateFiliereStatus'])->name('admin.updateFiliereStatus');
+    
+    // Update student information
+    Route::post('/etudiantDetails/{id}/update', [AdminController::class, 'updateEtudiant'])->name('admin.updateEtudiant');
+    
+    // Edit student page
+    Route::get('/etudiantDetails/{id}/edit', [AdminController::class, 'editEtudiant'])->name('admin.editEtudiant');
 });
 
 require __DIR__.'/auth.php';
